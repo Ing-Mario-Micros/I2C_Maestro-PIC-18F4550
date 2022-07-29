@@ -15,30 +15,29 @@
 
 
 
+
 void Start(void);
 void Stop(void);
 void Rstart(void);
-void EnvioDato(unsigned char,unsigned char,unsigned char);
-unsigned char LecturaDato(unsigned char,unsigned char);
-unsigned char LecturaDatoA(unsigned char);
-void EnvioDatoA(unsigned char Direccion, unsigned char Dato);
-char Contador =0;
 
 /*------------------------------ Funciones para DS ---------------------*/
-
+unsigned char LecturaDato(unsigned char,unsigned char);
+unsigned char Recibir_Dato_DSPIC(unsigned char,unsigned char);
 void Enviar_Dato_I2C(unsigned char);
 unsigned char Recibir_Dato_I2C(unsigned char);
+unsigned char RecibidoI2C ;
+
+/*------------------------------ variables del sistema -----------------*/
+char Vector_Datos[12] ;
 
 void main(void){
-  unsigned char aux;
-  int ax,ay,az,gx,gy,gz;
   OSCCON=0b01110000;
   __delay_ms(1);
   TRISD=0x00;
   LATD=0;
   TRISB=0xFF;
-  TRISE=0;
-  LATE=0;
+  TRISC=0;
+  LATC=0;
   SSPCON1=0b00101000;
   SSPCON2=0b00000000;
   SSPSTAT=0b11000000;
@@ -48,15 +47,77 @@ void main(void){
   while(1){
     __delay_ms(10);
       /*EnvioDato(0x0B,Contador,Contador);*/
-      LATD=LecturaDatoA(0x10);
+      //LATD=LecturaDatoA(0x10);
+      if(1== Recibir_Dato_DSPIC(0x10,0x1)){
+          LATC0=1;
+      }
+      else{
+          LATC0=0;
+      }
+      LATD=Vector_Datos[0x1];
+      if(1== Recibir_Dato_DSPIC(0x10,0x0)){
+          LATC0=1;
+      }
+      else{
+          LATC0=0;
+      }
+      LATD=Vector_Datos[0x0];
       //LATD = LecturaDato(0x0A,2);
     //EnvioDatoA(0x10,1);
     //Contador++;
-    LATE2=1;
+    LATC2=1;
     __delay_ms(1000);
-    LATE2=0;
+    LATC2=0;
     __delay_ms(1000);
   }  
+}
+unsigned char Recibir_Dato_DSPIC(unsigned char Direccion , unsigned char Registro){
+    char Dato_Temp , Verificador_Temp;
+    /** Envio de Start **/
+  while(RB2 == 1);
+  __delay_ms(500);
+  Start();
+  LATC2=1;
+  LATC1=1;
+  
+  /** Envio de Dirección **/
+  Enviar_Dato_I2C(Direccion & 0b11111110);
+  LATC2=0;
+  
+  /** Envio de registro a trabajar **/
+  Enviar_Dato_I2C(Registro);
+  LATC2=1;
+  
+  /** Envio de Dirección modo Lectura **/
+  Rstart();
+  Enviar_Dato_I2C(Direccion | 0b00000001);
+  LATC2=0;
+  
+  /** Resepción de Dato **/
+  Dato_Temp=Recibir_Dato_I2C(1);
+  LATC2=1;
+  
+  /** Resepción de Dato **/
+  Verificador_Temp=Recibir_Dato_I2C(0);
+  LATC2=0;
+  
+  /** Envio de Stop **/
+  while(RB2 == 1);
+    __delay_ms(500);
+  Stop();
+  if(Registro==Verificador_Temp){
+      Vector_Datos[Registro]=Dato_Temp;
+      
+      LATC2=1;
+      LATC1=0;
+      return 1; 
+  }
+  else{
+      
+      LATC2=1;
+      LATC1=0;
+      return 0;
+  }
 }
 
 void Enviar_Dato_I2C(unsigned char Dato){
@@ -97,23 +158,7 @@ void Rstart(void){
   RSEN=1;
   while(RSEN==1);  
 }
-void EnvioDato(unsigned char Direccion, unsigned char Registro, unsigned char Dato){
-  Start();
-  SSPBUF=Direccion; //& 0b11111110;
-  SSPIF=0;
-  while(SSPIF==0);
-  
-  SSPBUF=Registro;
-  SSPIF=0;
-  while(SSPIF==0);
-  
-  SSPBUF=Dato;
-  SSPIF=0;
-  while(SSPIF==0);
-  
-  SSPIF=0;
-  Stop();  
-}
+
 unsigned char LecturaDato(unsigned char Direccion, unsigned char Registro){
   Start();
   SSPBUF=Direccion & 0b11111110;
@@ -138,110 +183,4 @@ unsigned char LecturaDato(unsigned char Direccion, unsigned char Registro){
   
   Stop();
   return SSPBUF;  
-}
-unsigned char LecturaDatoA(unsigned char Direccion){
-  /** Envio de Start **/
-  while(RB2 == 1);
-  __delay_ms(500);
-  Start();
-  LATE2=1;
-  LATE1=1;
-  
-  /** Envio de Dirección **/
-  Enviar_Dato_I2C(Direccion & 0b11111110);
-  /*while(RB2 == 1);
-    __delay_ms(500);
-  SSPBUF=Direccion& 0b11111110; //| 0b00000001; //& 0b11111110;
-  SSPIF=0;
-  while(SSPIF==0);/**/
-  LATE2=0;
-  
-  /** Envio de registro a trabajar **/
-  Enviar_Dato_I2C(0x1);
-  /*while(RB2 == 1);
-  __delay_ms(500);
-  SSPBUF=0x1; 
-  SSPIF=0;
-  while(SSPIF==0);/**/
-  LATE2=1;
-  
-  /** Envio de Dirección modo Lectura **/
-  /*while(RB2 == 1);
-  __delay_ms(500);/**/
-  Rstart();
-  Enviar_Dato_I2C(Direccion | 0b00000001);
-  /*SSPBUF=Direccion | 0b00000001;
-  SSPIF=0;
-  while(SSPIF==0);/**/
-  LATE2=0;
-  
-  /** Resepción de Dato **/
-  
-  /*while(RB2 == 1);
-    __delay_ms(500);
-  RCEN=1;
-  SSPIF=0;
-  while(SSPIF==0);
-  LATD=SSPBUF;/**/
-  //LATE2=1;
-  LATD=Recibir_Dato_I2C(1);
-  /** Envio de ACK **/
-  /*SSPIF=0;
-  ACKDT=0;
-  ACKEN=1;
-  while(SSPIF==0);/**/
-  LATE2=1;
-  
-  /** Resepción de Dato **/
-  
-  /*while(RB2 == 1);
-    __delay_ms(500);
-  RCEN=1;
-  SSPIF=0;
-  while(SSPIF==0);
-  LATD=SSPBUF;
-  LATE2=1;/**/
-  LATD=Recibir_Dato_I2C(0);
-  /** Envio de NACK **/
-  /*SSPIF=0;
-  ACKDT=1;
-  ACKEN=1;
-  while(SSPIF==0);/**/
-  LATE2=0;
-  
-  /** Envio de Stop **/
-  while(RB2 == 1);
-    __delay_ms(500);
-  Stop();
-  LATE2=1;
-  LATE1=0;
-  return SSPBUF;  
-}
-void EnvioDatoA(unsigned char Direccion, unsigned char Dato){
-    while(RB2 == 1);
-    __delay_ms(500);
-    Start();
-    LATE2=1;
-    LATE1=1;
-    
-    while(RB2 == 1);
-    __delay_ms(500);
-    SSPBUF=Direccion; //& 0b11111110;
-    SSPIF=0;
-    while(SSPIF==0);
-    LATE2=0;
-    
-    while(RB2 == 1);
-    __delay_ms(500);
-    SSPBUF=Dato;
-    SSPIF=0;
-    while(SSPIF==0);
-    LATE2=1;
-    
-    while(RB2 == 1);
-    __delay_ms(500);
-    SSPIF=0;
-    Stop(); 
-    LATE1=0;
-    LATE2=0;
 }
