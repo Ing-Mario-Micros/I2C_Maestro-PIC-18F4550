@@ -15,17 +15,16 @@
 
 
 
-
+/*------------------------------ Funciones I2C ---------------------*/
 void Start(void);
 void Stop(void);
 void Rstart(void);
-
-/*------------------------------ Funciones para DS ---------------------*/
 unsigned char LecturaDato(unsigned char,unsigned char);
+/*------------------------------ Funciones para DS ---------------------*/
 unsigned char Recibir_Dato_DSPIC(unsigned char,unsigned char);
+void Enviar_Dato_DSPIC(unsigned char,unsigned char,unsigned char);
 void Enviar_Dato_I2C(unsigned char);
 unsigned char Recibir_Dato_I2C(unsigned char);
-unsigned char RecibidoI2C ;
 
 /*------------------------------ variables del sistema -----------------*/
 char Vector_Datos[12] ;
@@ -62,6 +61,7 @@ void main(void){
           LATC0=0;
       }
       LATD=Vector_Datos[0x0];
+      Enviar_Dato_DSPIC(0x10,0x11,90);
       //LATD = LecturaDato(0x0A,2);
     //EnvioDatoA(0x10,1);
     //Contador++;
@@ -70,6 +70,53 @@ void main(void){
     LATC2=0;
     __delay_ms(1000);
   }  
+}
+void Enviar_Dato_DSPIC(unsigned char Direccion,unsigned char Registro, unsigned char Valor){
+  char Verificador_Temp;
+  /** Envio de Start **/
+  while(RB2 == 1);
+  __delay_ms(500);
+  Start();
+  LATC2=1;
+  LATC1=1;
+  /** Envio de Dirección **/
+  Enviar_Dato_I2C(Direccion & 0b11111110);
+  LATC2=0;
+  /** Envio de registro a trabajar **/
+  Enviar_Dato_I2C(Registro);
+  LATC2=1;
+  /** Envio de valor al Registro **/
+  Enviar_Dato_I2C(Valor);
+  LATC2=0;
+  /** Envio de Dirección modo Lectura **/
+  Rstart();
+  Enviar_Dato_I2C(Direccion | 0b00000001);
+  LATC2=1;
+  /** Resepción de Dato **/
+  Verificador_Temp=Recibir_Dato_I2C(0);
+  LATC2=0;
+  /** Envio de Dirección modo Escritura **/
+  Rstart();
+  Enviar_Dato_I2C(Direccion & 0b11111110);
+  LATC2=1;
+  /** Envio de valor al Registro **/
+  while(RB2 == 1);
+  __delay_ms(500);
+  if(Registro==Verificador_Temp){
+      Enviar_Dato_I2C(2);
+      LATC0=1;
+  }
+  else{
+      Enviar_Dato_I2C(1);
+      LATC0=0;
+  }
+  LATC2=0;
+  /** Envio de Stop **/
+  while(RB2 == 1);
+  __delay_ms(500);
+  Stop();
+  LATC2=1;
+  LATC1=0;
 }
 unsigned char Recibir_Dato_DSPIC(unsigned char Direccion , unsigned char Registro){
     char Dato_Temp , Verificador_Temp;
@@ -119,6 +166,7 @@ unsigned char Recibir_Dato_DSPIC(unsigned char Direccion , unsigned char Registr
       return 0;
   }
 }
+
 
 void Enviar_Dato_I2C(unsigned char Dato){
     while(RB2 == 1);
