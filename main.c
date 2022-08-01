@@ -41,7 +41,7 @@ void main(void){
   SSPCON2=0b00000000;
   SSPSTAT=0b11000000;
   SSPADD=19;
-  PIR1=0;  
+  //PIR1=0;  
   //__delay_ms(100);
   while(1){
     __delay_ms(10);
